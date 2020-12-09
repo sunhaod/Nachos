@@ -23,10 +23,25 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-        int numPhysPages = Machine.processor().getNumPhysPages();
-        pageTable = new TranslationEntry[numPhysPages];
-        for (int i = 0; i < numPhysPages; i++)
-            pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+//        int numPhysPages = Machine.processor().getNumPhysPages();
+//        pageTable = new TranslationEntry[numPhysPages];
+//        for (int i = 0; i < numPhysPages; i++)
+//            pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+    	sharedStateLock.acquire();
+    	PID = nextPID ++;
+    	runningProcesses ++;
+    	sharedStateLock.release();
+    	
+    	if(openFiles == null) {
+    		openFiles = new OpenFile[MAX_FILE_OPEN];
+    		setStandardIO();
+    	}
+    	
+    }
+    
+    public void setStandardIO() {
+    	openFiles[0] = UserKernel.console.openForReading();
+    	openFiles[0] = UserKernel.console.openForWriting();
     }
 
     /**
@@ -333,7 +348,19 @@ public class UserProcess {
         processor.writeRegister(Processor.regA0, argc);
         processor.writeRegister(Processor.regA1, argv);
     }
+    
+    private int getUnusedFileDescriptor() {
+    	for(int i = 0; i < this.openFiles.length; i ++)
+    		if(this.openFiles[i] == null)
+    			return i;
+    	
+    	return -1;
+    }
 
+    private int handleCreate(final int fileAddress) {
+    	final String fileName
+    }
+    
     /**
      * Handle the halt() system call.
      */
@@ -347,9 +374,9 @@ public class UserProcess {
 
 
     private static final int
-            syscallHalt = 0,
-            syscallExit = 1,
-            syscallExec = 2,
+            syscallHalt = 0,//关机
+            syscallExit = 1,//进程终止
+            syscallExec = 2,//启动新进程
             syscallJoin = 3,
             syscallCreate = 4,
             syscallOpen = 5,
@@ -453,4 +480,16 @@ public class UserProcess {
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
+    
+    
+    private static Lock sharedStateLock = new Lock();
+    protected int PID;
+    private static int nextPID = 0;
+    private static int runningProcesses = 0;
+    
+    private static OpenFile[] openFiles;
+    private static final int MAX_FILE_OPEN = 16;
+    private static final int MAX_FILENAME_LENGTH = 256;
+    
+    
 }
